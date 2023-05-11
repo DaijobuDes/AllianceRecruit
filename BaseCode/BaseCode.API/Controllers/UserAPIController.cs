@@ -41,6 +41,11 @@ namespace BaseCode.API.Controllers
                 return Helper.ComposeResponse(HttpStatusCode.BadRequest, "The password and confirmation password do not match.");
             }
 
+            if (!userModel.RoleName.Equals(Constants.Roles.Admin) && !userModel.RoleName.Equals(Constants.Roles.User))
+            {
+                return Helper.ComposeResponse(HttpStatusCode.BadRequest, "Invalid role.");
+            }
+
             if (!ModelState.IsValid)
             {
                 return Helper.ComposeResponse(HttpStatusCode.BadRequest, Helper.GetModelStateErrors(ModelState));
@@ -72,35 +77,35 @@ namespace BaseCode.API.Controllers
         [AllowAnonymous]
         [HttpPost]
         [ActionName("login")]
-        public async Task<object> PostLogin([FromBody] UserViewModel user)
+        public async Task<object> PostLogin(string username, string password)
         {
-            if (string.IsNullOrEmpty(user.UserName) || string.IsNullOrEmpty(user.Password))
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
                 return Helper.ComposeResponse(HttpStatusCode.BadRequest, Constants.User.Empty);
             }
 
-            var result = await _userService.FindUserAsync(user.UserName, user.Password);
+            var result = await _userService.FindUserAsync(username, password);
 
             if (result == null)
             {
                 return Helper.ComposeResponse(HttpStatusCode.BadRequest, Constants.User.InvalidUserNamePassword);
             }
 
-            var token = GenerateJwtToken(user);
+            var token = GenerateJwtToken(result.Username, result.RoleName);
             return Ok(token);
 
         }
 
-        // [HttpGet]
-        // [ActionName("test")]
-        // [Authorize(Roles = "Administrator")]
-        // public IActionResult GetTest()
-        // {
-        //    var currentUser = GetCurrentUser();
-        //    return Ok("test");
-        // }
+         [HttpGet]
+         [ActionName("test")]
+         [Authorize(Roles = "Administrator")]
+         public IActionResult GetTest()
+         {
+            var currentUser = GetCurrentUser();
+            return Ok($"Hello {currentUser.UserName}! You are have the role of {currentUser.RoleName}.");
+         }
 
-        private string GenerateJwtToken(UserViewModel user)
+        private string GenerateJwtToken(string username, string role)
         {
             // Token handling
             // Encoding.ASCII.GetBytes(Configuration.Config.GetSection("BaseCode:AuthSecretKey").Value)
@@ -113,8 +118,8 @@ namespace BaseCode.API.Controllers
             var claims = new[]
             {
                 // new Claim("username", username),
-                new Claim(ClaimTypes.NameIdentifier, user.UserName),
-                new Claim(ClaimTypes.Role, user.RoleName),
+                new Claim(ClaimTypes.NameIdentifier, username),
+                new Claim(ClaimTypes.Role, role),
             };
 
             var issuer = Configuration.Config.GetSection("BaseCode:Issuer").Value;
