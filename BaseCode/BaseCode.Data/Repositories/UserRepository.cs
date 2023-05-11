@@ -107,6 +107,7 @@ namespace BaseCode.Data.Repositories
                 Username = username,
                 FirstName = firstName,
                 LastName = lastName,
+                RoleName = role,
             };
 
             Create(userEntity);
